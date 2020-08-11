@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/yigitsadic/onetimecode/shared"
-	"math/rand"
 	"net/http"
 	"time"
 )
@@ -50,7 +49,7 @@ func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(
 			return
 		}
 
-		err := redisService.RedisClient.Set(*ctx, createRandomValue(dto.Identifier), dto.Identifier, time.Second*120).Err()
+		err := redisService.RedisClient.Set(*ctx, shared.CreateRandomValue(), dto.Identifier, time.Second*120).Err()
 		if err != nil {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 
@@ -64,29 +63,8 @@ func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(
 
 		json.NewEncoder(w).Encode(&CreateResponse{
 			Identifier: dto.Identifier,
-			Value:      createRandomValue(dto.Identifier),
+			Value:      shared.CreateRandomValue(),
 			ExpiresAt:  time.Now().Add(120 * time.Second).Unix(),
 		})
 	}
-}
-
-func createRandomValue(identifier string) string {
-	var built []byte
-	var source []byte
-	for x := byte('A'); x <= byte('Z'); x++ {
-		source = append(source, x)
-	}
-
-	for x := byte('0'); x <= byte('9'); x++ {
-		source = append(source, x)
-	}
-
-	for x := 0; x < 7; x++ {
-		s1 := rand.NewSource(time.Now().UnixNano())
-		r1 := rand.New(s1)
-
-		built = append(built, source[r1.Intn(len(source)-1)])
-	}
-
-	return string(built)
 }
