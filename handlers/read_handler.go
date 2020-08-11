@@ -7,13 +7,12 @@ import (
 	"github.com/yigitsadic/onetimecode/models"
 	"github.com/yigitsadic/onetimecode/shared"
 	"net/http"
-	"time"
 )
 
 type ReadResponse struct {
 	Message    string `json:"message"`
 	Identifier string `json:"identifier"`
-	ExpiresAt  int64  `json:"expiresAt"`
+	ExpiresAt  string `json:"expiresAt"`
 }
 
 type ReadErrorResponse struct {
@@ -70,16 +69,16 @@ func HandleRead(redisService *shared.RedisService, ctx *context.Context) func(w 
 func readFromRedis(redisService *shared.RedisService, ctx *context.Context, values []string) (*models.OneTimeCode, error) {
 	for _, param := range values {
 		if len(param) > 0 {
-			val, err := redisService.RedisClient.Get(*ctx, param).Result()
+			val, err := redisService.RedisClient.HGetAll(*ctx, param).Result()
 
 			if err != nil {
 				continue
 			}
 
 			return &models.OneTimeCode{
-				Identifier: val,
+				Identifier: val["Identifier"],
 				Value:      param,
-				ExpiresAt:  time.Now().Add(120 * time.Second).Unix(),
+				ExpiresAt:  val["ExpiresAt"],
 			}, nil
 		}
 	}

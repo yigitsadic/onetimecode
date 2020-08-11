@@ -49,7 +49,12 @@ func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(
 			return
 		}
 
-		err := redisService.RedisClient.Set(*ctx, shared.CreateRandomValue(), dto.Identifier, time.Second*120).Err()
+		randVal := shared.CreateRandomValue()
+
+		err := redisService.RedisClient.HSet(*ctx, randVal, map[string]interface{}{
+			"Identifier": dto.Identifier,
+			"ExpiresAt":  time.Now().Add(120 * time.Second).Unix(),
+		}).Err()
 		if err != nil {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 
@@ -63,7 +68,7 @@ func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(
 
 		json.NewEncoder(w).Encode(&CreateResponse{
 			Identifier: dto.Identifier,
-			Value:      shared.CreateRandomValue(),
+			Value:      randVal,
 			ExpiresAt:  time.Now().Add(120 * time.Second).Unix(),
 		})
 	}
