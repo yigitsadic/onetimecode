@@ -1,0 +1,8 @@
+package shared
+
+const (
+	ERR_NOT_FOUND int8 = iota
+	ERR_CANNOT_PARSE
+	ERR_VALUE_PARAM_NOT_FOUND
+	ERR_UNABLE_TO_CREATE
+)
