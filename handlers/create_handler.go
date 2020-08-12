@@ -1,9 +1,11 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
+	"github.com/yigitsadic/onetimecode/models"
+	"github.com/yigitsadic/onetimecode/responses"
 	"github.com/yigitsadic/onetimecode/shared"
+	"log"
 	"net/http"
 	"time"
 )
@@ -20,18 +22,7 @@ func (c CreateDto) Validate() bool {
 	return true
 }
 
-type CreateResponse struct {
-	Identifier string `json:"identifier"`
-	Value      string `json:"value"`
-	ExpiresAt  int64  `json:"expiresAt"`
-}
-
-type FailedCreationResponse struct {
-	Message   string `json:"message"`
-	ErrorCode int8   `json:"errorCode"`
-}
-
-func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(w http.ResponseWriter, r *http.Request) {
+func HandleCreate(codeStore *models.CodeStore) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -41,7 +32,7 @@ func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(
 		if !dto.Validate() {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 
-			json.NewEncoder(w).Encode(&FailedCreationResponse{
+			json.NewEncoder(w).Encode(&responses.FailedCreationResponse{
 				Message:   "Unable to create with given values",
 				ErrorCode: shared.ERR_UNABLE_TO_CREATE,
 			})
@@ -49,27 +40,43 @@ func HandleCreate(redisService *shared.RedisService, ctx *context.Context) func(
 			return
 		}
 
-		randVal := shared.CreateRandomValue()
+		codeStore.Mux.Lock()
+		defer codeStore.Mux.Unlock()
 
-		err := redisService.RedisClient.HSet(*ctx, randVal, map[string]interface{}{
-			"Identifier": dto.Identifier,
-			"ExpiresAt":  time.Now().Add(120 * time.Second).Unix(),
-		}).Err()
-		if err != nil {
-			w.WriteHeader(http.StatusUnprocessableEntity)
+		next := true
+		var val *models.OneTimeCode
+		var ok bool
 
-			json.NewEncoder(w).Encode(&FailedCreationResponse{
-				Message:   "Unable to create with given values",
-				ErrorCode: shared.ERR_UNABLE_TO_CREATE,
-			})
+		for next {
+			randVal := shared.CreateRandomValue()
+			val, ok = codeStore.Codes[randVal]
 
-			return
+			if !ok {
+				val = &models.OneTimeCode{
+					Identifier: dto.Identifier,
+					Value:      randVal,
+					ExpiresAt:  time.Now().UTC().Add(time.Second * time.Duration(codeStore.Expiration)),
+				}
+
+				next = false
+			}
 		}
 
-		json.NewEncoder(w).Encode(&CreateResponse{
+		codeStore.Codes[val.Value] = val
+
+		go func(c *models.OneTimeCode, s *models.CodeStore) {
+			log.Printf("Enqueued delete key job with value=%s\tidentifier=%s\texpiresAt=%s\n", c.Value, c.Identifier, c.ExpiresAt)
+
+			time.AfterFunc(time.Until(c.ExpiresAt), func() {
+				log.Printf("Code %s is expired and deleted at %s\n", c.Value, time.Now())
+				delete(s.Codes, c.Value)
+			})
+		}(val, codeStore)
+
+		json.NewEncoder(w).Encode(&responses.CreateResponse{
 			Identifier: dto.Identifier,
-			Value:      randVal,
-			ExpiresAt:  time.Now().Add(120 * time.Second).Unix(),
+			Value:      val.Value,
+			ExpiresAt:  val.ExpiresAt.UTC().Unix(),
 		})
 	}
 }

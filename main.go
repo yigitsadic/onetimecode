@@ -1,16 +1,13 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/yigitsadic/onetimecode/handlers"
-	"github.com/yigitsadic/onetimecode/shared"
+	"github.com/yigitsadic/onetimecode/models"
 	"log"
 	"net/http"
 	"os"
 )
-
-var ctx = context.Background()
 
 func main() {
 	port := os.Getenv("PORT")
@@ -18,12 +15,13 @@ func main() {
 		port = "8080"
 	}
 
+	expiration := 60
+	codeStore := models.NewCodeStore(expiration)
+
 	log.Printf("Server is up and running on PORT %s", port)
 
-	redisService := shared.NewRedisService()
-
-	http.HandleFunc("/create", handlers.HandleCreate(redisService, &ctx))
-	http.HandleFunc("/read", handlers.HandleRead(redisService, &ctx))
+	http.HandleFunc("/create", handlers.HandleCreate(codeStore))
+	http.HandleFunc("/read", handlers.HandleRead(codeStore))
 
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 	if err != nil {

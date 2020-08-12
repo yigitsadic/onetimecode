@@ -1,33 +1,24 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"github.com/yigitsadic/onetimecode/models"
+	"github.com/yigitsadic/onetimecode/responses"
 	"github.com/yigitsadic/onetimecode/shared"
+	"log"
 	"net/http"
+	"time"
 )
 
-type ReadResponse struct {
-	Message    string `json:"message"`
-	Identifier string `json:"identifier"`
-	ExpiresAt  string `json:"expiresAt"`
-}
-
-type ReadErrorResponse struct {
-	Message   string `json:"message"`
-	ErrorCode int8   `json:"errorCode"`
-}
-
-func HandleRead(redisService *shared.RedisService, ctx *context.Context) func(w http.ResponseWriter, r *http.Request) {
+func HandleRead(codeStore *models.CodeStore) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		err := r.ParseForm()
-		if err != nil {
+		val := r.URL.Query().Get("code")
+
+		if val == "" {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			json.NewEncoder(w).Encode(&ReadErrorResponse{
+			json.NewEncoder(w).Encode(&responses.ReadErrorResponse{
 				Message:   "Unable to parse parameters",
 				ErrorCode: shared.ERR_CANNOT_PARSE,
 			})
@@ -35,10 +26,12 @@ func HandleRead(redisService *shared.RedisService, ctx *context.Context) func(w 
 			return
 		}
 
-		values, ok := r.Form["value"]
+		parsed, ok := codeStore.Codes[val]
 		if !ok {
+			log.Printf("Code %s is not found\n", val)
+
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			json.NewEncoder(w).Encode(&ReadErrorResponse{
+			json.NewEncoder(w).Encode(&responses.ReadErrorResponse{
 				Message:   "Value parameter not found",
 				ErrorCode: shared.ERR_VALUE_PARAM_NOT_FOUND,
 			})
@@ -46,42 +39,12 @@ func HandleRead(redisService *shared.RedisService, ctx *context.Context) func(w 
 			return
 		}
 
-		result, err := readFromRedis(redisService, ctx, values)
+		log.Printf("Served Code %s\t with identifier %s at %s\n", parsed.Value, parsed.Identifier, time.Now().UTC())
 
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(&ReadErrorResponse{
-				Message:   "Given value not found",
-				ErrorCode: shared.ERR_NOT_FOUND,
-			})
-
-			return
-		}
-
-		json.NewEncoder(w).Encode(&ReadResponse{
+		json.NewEncoder(w).Encode(&responses.ReadResponse{
 			Message:    "success",
-			Identifier: result.Identifier,
-			ExpiresAt:  result.ExpiresAt,
+			Identifier: parsed.Identifier,
+			ExpiresAt:  parsed.ExpiresAt.UTC().Unix(),
 		})
 	}
-}
-
-func readFromRedis(redisService *shared.RedisService, ctx *context.Context, values []string) (*models.OneTimeCode, error) {
-	for _, param := range values {
-		if len(param) > 0 {
-			val, err := redisService.RedisClient.HGetAll(*ctx, param).Result()
-
-			if err != nil {
-				continue
-			}
-
-			return &models.OneTimeCode{
-				Identifier: val["Identifier"],
-				Value:      param,
-				ExpiresAt:  val["ExpiresAt"],
-			}, nil
-		}
-	}
-
-	return nil, errors.New("unable to find given value")
 }
