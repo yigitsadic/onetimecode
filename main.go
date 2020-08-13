@@ -8,6 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
+	"strconv"
 )
 
 func main() {
@@ -16,8 +18,15 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	expiration := 60
-	codeStore := models.NewCodeStore(expiration)
+	codeExp := os.Getenv("CODE_EXP")
+	var expiration int64
+	if codeExp == "" {
+		expiration = 60
+	} else {
+		expiration, err = strconv.ParseInt(codeExp, 10, 64)
+	}
+
+	codeStore := models.NewCodeStore(int(expiration))
 
 	s := otcgo.Server{CodeStore: codeStore}
 	grpcServer := grpc.NewServer()

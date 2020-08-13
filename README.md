@@ -5,6 +5,8 @@ is mapped to random **x** length of string (*HPI05VM*) for **y** seconds.
 
 Application does not handle any authentication nor authorization.
 
+Generated codes stores in memory, because of that, any time service is down, your codes will go down.
+
 ## Configuration
 
 Application configurable through environment variables.
