@@ -47,4 +47,6 @@ service OneTimeCodeService {
 
 ## Docker
 
-TODO
+You can run ` docker run --rm -e CODE_EXP=5 -p 9000:9000 yigitsadic/onetimecodego:latest`
+
+For client: `go run client.go`
