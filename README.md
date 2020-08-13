@@ -5,9 +5,43 @@ is mapped to random **x** length of string (*HPI05VM*) for **y** seconds.
 
 Application does not handle any authentication nor authorization.
 
-## API Usage
+## Configuration
 
-TODO
+Application configurable through environment variables.
+
+```
+CODE_EXP = 60
+```
+
+## Grpc
+
+Example client can be found in **client.go**
+
+```protobuf
+syntax = "proto3";
+package otcgo;
+
+option go_package = "grpc;grpc";
+
+message OneTimeCodeGen {
+  string identifier = 1;
+}
+
+message ReadCodeReq {
+  string value = 1;
+}
+
+message OneTimeCodeResponse {
+  string identifier = 1;
+  int64 expiresAt = 2;
+  string value = 3;
+}
+
+service OneTimeCodeService {
+  rpc CreateCode(OneTimeCodeGen) returns (OneTimeCodeResponse) {}
+  rpc ReadCode(ReadCodeReq) returns (OneTimeCodeResponse) {}
+}
+```
 
 ## Docker
 

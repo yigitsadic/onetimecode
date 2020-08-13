@@ -2,29 +2,30 @@ package main
 
 import (
 	"fmt"
-	"github.com/yigitsadic/onetimecode/handlers"
+	grpc2 "github.com/yigitsadic/onetimecode/grpc/grpc"
 	"github.com/yigitsadic/onetimecode/models"
+	"github.com/yigitsadic/onetimecode/otcgo"
+	"google.golang.org/grpc"
 	"log"
-	"net/http"
-	"os"
+	"net"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 9000))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
 
 	expiration := 60
 	codeStore := models.NewCodeStore(expiration)
 
-	log.Printf("Server is up and running on PORT %s", port)
+	s := otcgo.Server{CodeStore: codeStore}
+	grpcServer := grpc.NewServer()
 
-	http.HandleFunc("/create", handlers.HandleCreate(codeStore))
-	http.HandleFunc("/read", handlers.HandleRead(codeStore))
+	grpc2.RegisterOneTimeCodeServiceServer(grpcServer, &s)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
-	if err != nil {
-		log.Fatalf("Unable to continue serving cause of %s", err)
+	log.Println("GRPC server up and running")
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %s", err)
 	}
 }
