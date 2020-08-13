@@ -33,7 +33,7 @@ func main() {
 
 	grpc2.RegisterOneTimeCodeServiceServer(grpcServer, &s)
 
-	log.Println("GRPC server up and running")
+	log.Printf("GRPC server up and running with %d seconds of expiration\n", expiration)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %s", err)
 	}
