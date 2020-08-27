@@ -5,16 +5,17 @@ import (
 	"time"
 )
 
+var (
+	source = []byte{
+		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+		'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+		'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+		'1', '2', '3', '4', '5', '6', '7', '8', '9',
+	}
+)
+
 func CreateRandomValue() string {
 	var built []byte
-	var source []byte
-	for x := byte('A'); x <= byte('Z'); x++ {
-		source = append(source, x)
-	}
-
-	for x := byte('0'); x <= byte('9'); x++ {
-		source = append(source, x)
-	}
 
 	for x := 0; x < 7; x++ {
 		s1 := rand.NewSource(time.Now().UnixNano())
